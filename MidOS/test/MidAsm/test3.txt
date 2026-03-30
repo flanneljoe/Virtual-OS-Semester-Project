@@ -1,0 +1,6 @@
+Sample 3: Increment and Add Immediate assembly; Demonstrate incr and addi
+movi r1, #5         ; r1 = 5
+incr r1             ; r1 = 6
+addi r1, #10        ; r1 = 16
+printr r1           ; print 16
+exit

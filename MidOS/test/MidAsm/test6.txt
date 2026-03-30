@@ -1,0 +1,10 @@
+Sample 6: Simple Conditional Jump assembly; Compare and jump
+movi r1, #10        ; r1 = 10
+cmpi r1, #5         ; compare r1 with 5
+jgti #16             ; if r1 > 5, jump 16 bytes past this instruction to skip 3
+printr r1           ; skipped
+printr r1           ; skipped
+printr r1           ; skipped
+movi r2, #99        ; this executes (r2 = 99)
+printr r2           ; print 99
+exit

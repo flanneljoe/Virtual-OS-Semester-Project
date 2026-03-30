@@ -1,0 +1,9 @@
+Sample 7: Simple Loop (Count to 5) assembly; Count from 1 to 5
+movi r1, #0         ; counter
+movi r2, #5         ; limit
+; loop:
+incr r1             ; increment counter
+printr r1           ; print current value
+cmpr r1, r2         ; compare with limit
+jlti #-12            ; if less than 5, jump back 12 bytes (3 instructions)
+exit

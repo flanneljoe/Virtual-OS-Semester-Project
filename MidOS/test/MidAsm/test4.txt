@@ -1,0 +1,6 @@
+Sample 4: Character Output assembly; Print a character
+movi r1, @H         ; r1 = ASCII 'H' (72)
+printcr r1          ; print 'H'
+movi r1, @i         ; r1 = ASCII 'i'
+printcr r1          ; print 'i'
+exit

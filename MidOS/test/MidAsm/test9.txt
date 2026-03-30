@@ -1,0 +1,8 @@
+Sample 9: Memory Operations assembly; Store and load from memory
+movi r1, #1000      ; memory address
+movi r2, #77        ; value to store
+movrm r1, r2        ; memory[1000] = 77
+movi r3, #0         ; clear r3
+movmr r3, r1        ; r3 = memory[1000]
+printr r3           ; print 77
+exit

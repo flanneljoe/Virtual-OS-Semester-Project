@@ -1,0 +1,9 @@
+Sample 12: Memory-to-Memory Copy assembly; Copy value from one memory location to another
+movi r1, #2000      ; source address
+movi r2, #3000      ; destination address
+movi r3, #55        ; value
+movrm r1, r3        ; memory[2000] = 55
+movmm r2, r1        ; memory[3000] = memory[2000]
+movmr r4, r2        ; r4 = memory[3000]
+printr r4           ; print 55
+exit

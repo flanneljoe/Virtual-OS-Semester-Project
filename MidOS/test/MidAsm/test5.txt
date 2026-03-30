@@ -1,0 +1,7 @@
+Sample 5: Stack Operations assembly; Push and pop from stack
+movi r1, #100       ; r1 = 100
+pushr r1            ; push r1 onto stack
+movi r1, #0         ; clear r1
+popr r2             ; pop into r2
+printr r2           ; print 100
+exit

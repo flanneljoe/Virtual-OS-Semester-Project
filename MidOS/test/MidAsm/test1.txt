@@ -1,0 +1,4 @@
+Sample 1: Move and print assembly; Print a single number
+movi r1, #42        ; load 42 into r1
+printr r1           ; print the value
+exit                ; terminate program

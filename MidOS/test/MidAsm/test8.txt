@@ -1,0 +1,12 @@
+Sample 8: Subroutine Call assembly
+; Main program
+movi r1, #42        ; r1 = 42
+movi r2, #12
+call r2            ; call subroutine (skip 12 bytes)
+printr r1           ; print result (84)
+exit
+
+; Subroutine: double the value in r1
+; double:
+addr r1, r1         ; r1 = r1 + r1
+ret                 ; return

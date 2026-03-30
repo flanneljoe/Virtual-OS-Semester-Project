@@ -1,0 +1,60 @@
+﻿using MidOS.src.classes;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace MidOS.src.interfaces
+{
+    internal interface IMemManager
+    {
+        /// <summary>
+        /// Gets the value of the specified address if it's a valid and accessable address.
+        /// </summary>
+        /// <param name="addr">The address to get the value of.</param>
+        /// <returns>Returns an <seealso cref="uint"/> representing the value at the specified address.</returns>
+        uint GetAddr(uint addr);
+
+        /// <summary>
+        /// Sets the value of the specified address to the provided value if it's a valid and accessable address.
+        /// </summary>
+        /// <param name="addr">The address to set the value of.</param>
+        /// <param name="val">The value to be set.</param>
+        void SetAddr(uint addr, uint val);
+
+        /// <summary>
+        /// Gets the value of the specified address from memory. Not to be called directly by user programs.
+        /// </summary>
+        /// <param name="addr">The address to get the value of.</param>
+        /// <returns>Returns an <seealso cref="uint"/> representing the value at the specified address.</returns>
+        uint ReadAddr(uint addr);
+
+        /// <summary>
+        /// Sets the value of the specified address to the provided value if it's a valid and accessable address. Not to be called directly by user programs.
+        /// </summary>
+        /// <param name="addr">Address to set the value of.</param>
+        /// <param name="val">Value to be set.</param>
+        void WriteAddr(uint addr, uint val);
+
+        /// <summary>
+        /// Gets an instruction stored at the specified address.
+        /// </summary>
+        /// <param name="addr">The address containing the first byte of the instruction.</param>
+        /// <returns>Returns a three valued tuple containing <seealso cref="uint"/> representing the byte containing the instruction, the byte containing the value of the first paremeter, and the byte containing the value of the second parameter.</returns>
+        (uint insn, uint p1, uint p2) GetInsn(uint addr);
+
+        /// <summary>
+        /// Checks if the given address is valid in the context of the curent <seealso cref="AddressSpace"/>.
+        /// </summary>
+        /// <param name="addr">The address to be checked.</param>
+        /// <returns>Returns a <seealso cref="bool"/> representing if the given address is valid in the current <seealso cref="AddressSpace"/>. True if valid, false otherwise.</returns>
+        bool ValidAddr(uint addr);
+
+        /// <summary>
+        /// Sets the current address space to the given <seealso cref="AddressSpace"/>.
+        /// </summary>
+        /// <param name="ctx"><seealso cref="AddressSpace"/> to set the current address space to.</param>
+        void SetContext(AddressSpace ctx);
+    }
+}

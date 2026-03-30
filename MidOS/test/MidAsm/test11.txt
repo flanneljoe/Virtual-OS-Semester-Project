@@ -1,0 +1,19 @@
+Sample 11: Factorial (More Complex) assembly
+; Calculate 5! = 120
+movi r1, #5         ; n = 5
+movi r2, #1         ; result = 1
+; outer loop: multiply result by n using repeated addition, then decrement n
+movi r3, #0         ; reset accumulator
+movi r4, #0         ; reset inner counter
+; inner loop: add result to accumulator n times
+incr r4             ; counter++
+addr r3, r2         ; accumulator += result
+cmpr r4, r1         ; compare counter with n
+jlti #-12           ; if counter < n, loop back to incr r4
+pushr r3            ; copy accumulator onto stack
+popr r2             ; pop into result
+addi r1, #-1        ; n--
+cmpi r1, #1         ; compare n with 1
+jgti #-40           ; if n > 1, loop back to movi r3, #0
+printr r2           ; print 120
+exit

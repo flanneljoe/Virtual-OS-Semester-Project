@@ -1,0 +1,6 @@
+Sample 2: Simple Arithmetic assembly; Add two numbers and print result
+movi r1, #10        ; r1 = 10
+movi r2, #20        ; r2 = 20
+addr r1, r2         ; r1 = r1 + r2 (30)
+printr r1           ; print 30
+exit
