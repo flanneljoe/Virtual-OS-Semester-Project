@@ -74,58 +74,100 @@ namespace MidOS.src.classes
 
         public void Run()
         {
-            if (config == null) return;
+            if (config == null) 
+                return;
 
+            Scheduler scheduler = new Scheduler();
+
+            // Phase 1: Load all programs into processes and enqueue them
             foreach (string file in programFiles)
             {
-                uint PROG_BASE = 0;
-
-                // Reset CPU state for each program
-                regs = new uint[15];
-                SetIP(PROG_BASE);
-                IsHalted = false;
-
-                // Free all page frames so the next program can allocate from the start
-                mem.FreeAllPages();
+                const uint PROG_BASE = 0;
 
                 IProgram p = new DefaultProgram(file, PROG_BASE);
-                ProgramLoader loader = new ProgramLoader(p, mem);
+
+                // Create the PCB early with a placeholder AddressSpace so that
+                // ProgramLoader can write directly into proc.WorkingSetPages
+                PCB proc = new PCB(p, new AddressSpace(0, 0, 0, 0, 0, 0, 0, 0), config.TimeQuantum);
+
+                // Point the MMU at this process's page table so the
+                // loader writes to physical frames that belong to this process
+                mem.SetPageTable(proc.WorkingSetPages);
+
+                ProgramLoader loader = new ProgramLoader(p, mem, proc.WorkingSetPages);
                 loader.LoadProgram();
 
-                // Setup bounds for AddressSpace
-                uint codeBase = PROG_BASE;
+                // Compute the full virtual address layout now that code size is known
+                uint codeBase  = PROG_BASE;
                 uint codeLimit = codeBase + p.GetSize();
 
-                uint dataBase = GetGlobalMemoryStart();
+                uint dataBase  = codeLimit;
                 uint dataLimit = dataBase + config.GlobalDataSize;
 
-                uint heapBase = dataLimit;
+                uint heapBase  = dataLimit;
                 uint heapLimit = heapBase + config.HeapSize;
 
-                uint stackBase = heapLimit + config.StackSize;
+                uint stackBase  = heapLimit + config.StackSize;
                 uint stackLimit = heapLimit;
 
-                // AddressSpace records reality
-                AddressSpace ctx = new AddressSpace(
-                    codeBase, codeLimit,
-                    dataBase, dataLimit,
-                    heapBase, heapLimit,
+                // Replace the placeholder with the real AddressSpace
+                proc.SetAddressSpace(new AddressSpace(
+                    codeBase,  codeLimit,
+                    dataBase,  dataLimit,
+                    heapBase,  heapLimit,
                     stackBase, stackLimit
-                );
+                ));
 
-                // Create a process and execute
-                PCB proc = new PCB(p, ctx);
-
-                // Initialize SP to the top of the stack region
+                // Set initial register state:
+                // r11 (IP) = 0  (already 0 from zero-init)
+                // r13 (SP) = top of stack
+                // r14 = start of global data (fixes previously always-0 bug)
                 proc.GetRegisters()[13] = stackBase;
+                proc.GetRegisters()[14] = dataBase;
 
-                while (!IsHalted && !proc.IsFinished)
+                proc.State = ProcessState.Ready;
+                scheduler.Enqueue(proc);
+            }
+
+            // Scheduler loop, runs until all processes have terminated
+            while (!scheduler.AllTerminated())
+            {
+                scheduler.WakeExpired(clock);
+
+                PCB? next = scheduler.SelectNext();
+                if (next == null)
                 {
-                    if (proc.SleepUntil <= clock)
-                        RunProcess(proc);   // executes one instruction, then ticks
-                    else
-                        Tick();             // advance clock while process is sleeping
+                    Tick();   // all live processes are sleeping; advance time
+                    continue;
                 }
+
+                next.State = ProcessState.Running;
+                mem.SetPageTable(next.WorkingSetPages);
+                mem.SetContext(next.GetAddressSpace());
+
+                uint remaining = next.TimeQuantum;
+                while (remaining > 0 && next.State == ProcessState.Running)
+                {
+                    RunProcess(next);
+                    next.ClockCyclesUsed++;
+                    remaining--;
+                }
+
+                // If the process is still Running after the quantum, context-switch it out
+                if (next.State == ProcessState.Running)
+                {
+                    next.State = ProcessState.Ready;
+                    next.ContextSwitchCount++;
+                }
+            }
+
+            // Print per-process statistics
+            Console.WriteLine("\n--- Process Statistics ---");
+            foreach (PCB proc in scheduler.GetAll())
+            {
+                Console.WriteLine(
+                    $"Process {proc.ProcessId}: " +
+                    $"{proc.ClockCyclesUsed} cycles, {proc.ContextSwitchCount} context switches");
             }
         }
 
@@ -206,17 +248,21 @@ namespace MidOS.src.classes
         {
             currentProc = proc;
 
-            // Restore CPU state from process
+            // Restore CPU state from process, registers and flags
             regs = proc.GetRegisters();
+            ZERO_FLAG = proc.ZeroFlag;
+            SIGN_FLAG = proc.SignFlag;
             mem.SetContext(proc.GetAddressSpace());
 
-            // Fetch-Decode-Execute
+            // Fetch, Decode, Execute
             (uint opCode, uint p1, uint p2) = mem.GetInsn(GetIP());
             Action<uint, uint> Exec = TryDecode(opCode);
             Exec(p1, p2);
 
-            // Save CPU state back to process
+            // Save CPU state back to process, registers and flags
             proc.SetRegisters(regs);
+            proc.ZeroFlag = ZERO_FLAG;
+            proc.SignFlag  = SIGN_FLAG;
 
             currentProc = null;
             Tick();
@@ -711,9 +757,8 @@ namespace MidOS.src.classes
 
         private void Exec_Exit(uint p1, uint p2)
         {
-            // Signal the current process as finished so the execution loop stops
             if (currentProc != null)
-                currentProc.IsFinished = true;
+                currentProc.State = ProcessState.Terminated;
         }
 
         private void Exec_Popr(uint p1, uint p2)
@@ -733,7 +778,10 @@ namespace MidOS.src.classes
         private void Exec_Sleep(uint p1, uint p2)
         {
             if (currentProc != null)
+            {
                 currentProc.SleepUntil = (p1 == 0) ? ulong.MaxValue : clock + p1;
+                currentProc.State = ProcessState.WaitingAsleep;
+            }
             AdvanceIP();
         }
 
@@ -761,6 +809,9 @@ namespace MidOS.src.classes
             SetRegVal(p1,     (uint)(value >> 32));        // high word
             SetRegVal(p1 + 1, (uint)(value & 0xFFFFFFFF)); // low word
             AdvanceIP();
+            // Yield after I/O so other processes can run while this one re-enters the ready queue
+            if (currentProc != null)
+                currentProc.State = ProcessState.Ready;
         }
 
         private void Exec_Inputc(uint p1, uint p2)
@@ -771,6 +822,9 @@ namespace MidOS.src.classes
             Console.WriteLine();
             SetRegVal(p1, (uint)key.KeyChar);
             AdvanceIP();
+            // Yield after I/O so other processes can run while this one re-enters the ready queue
+            if (currentProc != null)
+                currentProc.State = ProcessState.Ready;
         }
 
         private void Exec_SetPriority(uint p1, uint p2)
@@ -789,10 +843,12 @@ namespace MidOS.src.classes
         #endregion
     }
 
-    internal class ProgramLoader(IProgram program, MemManager m)
+    internal class ProgramLoader(IProgram program, MemManager m, List<IMemPage> workingSetPages)
     {
         internal IProgram p = program;
         internal MemManager mem = m;
+        // The per-process page table this loader populates during loading
+        internal List<IMemPage> WorkingSetPages = workingSetPages;
 
         internal void LoadProgram()
         {
@@ -805,9 +861,10 @@ namespace MidOS.src.classes
                 uint pageSize = mem.GetPageSize();
                 uint currentLogicalPage = currentAddr / pageSize;
 
-                // Allocate and map the first physical page for this program
+                // Allocate the first physical frame for this process and add it to its page table
                 uint physBase = mem.AllocatePhysicalPage();
-                mem.MapLogicalPage(currentLogicalPage, physBase);
+                WorkingSetPages.Add(new MemPage(physBase) { IsOccupied = true });
+                mem.SetPageTable(WorkingSetPages);
 
                 foreach (string line in lines.Skip(1))
                 {
@@ -885,17 +942,19 @@ namespace MidOS.src.classes
             }
         }
 
-        // Writes a byte to the given logical address
-        // allocates a new page frame if the address crosses into a new logical page.
+        // Writes a byte to the given logical address, allocating a new per-process page frame
+        // when the address crosses into a new logical page.
         private void WritePagedByte(uint addr, uint value, ref uint currentLogicalPage, uint pageSize)
         {
             uint page = addr / pageSize;
 
             if (page != currentLogicalPage)
             {
-                // Crossed into a new logical page — allocate and map a fresh physical frame
+                // Crossed into a new logical page
+                // allocate a physical frame and add it to this process's page table
                 uint physBase = mem.AllocatePhysicalPage();
-                mem.MapLogicalPage(page, physBase);
+                WorkingSetPages.Add(new MemPage(physBase) { IsOccupied = true });
+                mem.SetPageTable(WorkingSetPages);
                 currentLogicalPage = page;
             }
 

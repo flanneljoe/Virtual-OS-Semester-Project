@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MidOS.src.interfaces
 {
-    internal interface IMemPage
+    public interface IMemPage
     {
         /// <summary>
         /// The physical base address of this page frame in physical memory.

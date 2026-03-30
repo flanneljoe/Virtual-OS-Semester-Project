@@ -12,5 +12,6 @@ namespace MidOS.src.classes
         public uint HeapSize { get; set; } = 0;
         public uint StackSize { get; set; } = 4;
         public uint PageSize { get; set; } = 256;
+        public uint TimeQuantum { get; set; } = 10;
     }
 }

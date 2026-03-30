@@ -14,29 +14,43 @@ namespace MidOS.src.classes
         private AddressSpace? ctx;
 
         private uint pageSize;
+
+        // Active translation table
+        // Used by Translate() to resolve logial to physical addresses
+        // Swapped per context switch via SetPageTable()
         private List<IMemPage> pageTable;
+
+        // Global physical frame pool that tracks which frames are free/occupied.
+        // AllocatePhysicalPage/FreePage operate on this pool, not on pageTable.
+        private List<IMemPage> physicalFramePool;
 
         public uint GetPageSize()
         {
             return pageSize;
         }
 
+        public void SetPageTable(List<IMemPage> table)
+        {
+            pageTable = table;
+        }
+
         public MemManager(int memSize, OSConfig config)
         {
             memory = new PhysicalMemory(memSize);
             pageSize = config.PageSize;
+            physicalFramePool = [];
             pageTable = [];
             InitPageTable(memSize);
         }
 
         private void InitPageTable(int memSize)
         {
-            // Populate an identity mapping: logical page i == physical address i * pageSize.
-            // Use ceiling division so that memory sizes smaller than one page still get one frame.
+            // Populate the global physical frame pool with an identity mapping.
+            // Programs with less than pageSize memory still need a frame, so use ceiling division.
             int totalPages = (memSize + (int)pageSize - 1) / (int)pageSize;
             for (int i = 0; i < totalPages; i++)
             {
-                pageTable.Add(new MemPage((uint)(i * pageSize)));
+                physicalFramePool.Add(new MemPage((uint)(i * pageSize)));
             }
         }
 
@@ -45,8 +59,18 @@ namespace MidOS.src.classes
             uint page = virtualAddr / pageSize;
             uint offset = virtualAddr % pageSize;
 
-            if (page >= pageTable.Count)
-                throw new ArgumentOutOfRangeException(nameof(virtualAddr), $"MemManager: Virtual address {virtualAddr} maps to page {page} which is out of range.");
+            // If full on pages, try to get another page 
+            if (page >= (uint)pageTable.Count)
+            {
+                IMemPage? free = physicalFramePool.FirstOrDefault(p => !p.IsOccupied);
+                if (free == null)
+                    throw new OutOfMemoryException($"MemManager: No free physical frames for virtual address {virtualAddr} (page {page}).");
+
+                free.IsOccupied = true;
+                while (pageTable.Count <= (int)page)
+                    pageTable.Add(new MemPage(0));
+                pageTable[(int)page].PhysicalBase = free.PhysicalBase;
+            }
 
             return pageTable[(int)page].PhysicalBase + offset;
         }
@@ -121,22 +145,22 @@ namespace MidOS.src.classes
 
         public void FreeAllPages()
         {
-            foreach (IMemPage page in pageTable)
+            foreach (IMemPage frame in physicalFramePool)
             {
-                page.IsOccupied = false;
+                frame.IsOccupied = false;
             }
         }
 
         public void FreePage(uint physicalBase)
         {
-            IMemPage? frame = pageTable.FirstOrDefault(p => p.PhysicalBase == physicalBase);
+            IMemPage? frame = physicalFramePool.FirstOrDefault(p => p.PhysicalBase == physicalBase);
             if (frame != null)
                 frame.IsOccupied = false;
         }
 
         public uint AllocatePhysicalPage()
         {
-            IMemPage? free = pageTable.FirstOrDefault(p => !p.IsOccupied);
+            IMemPage? free = physicalFramePool.FirstOrDefault(p => !p.IsOccupied);
             if (free == null)
                 throw new OutOfMemoryException("MemManager: No free physical page frames available.");
 
@@ -146,7 +170,7 @@ namespace MidOS.src.classes
 
         public void MapLogicalPage(uint logicalPage, uint physicalBase)
         {
-            // Grow the page table if needed to accommodate the logical page number
+            // Grow the active translation table if needed
             while (pageTable.Count <= (int)logicalPage)
             {
                 pageTable.Add(new MemPage(0));
@@ -154,8 +178,8 @@ namespace MidOS.src.classes
 
             pageTable[(int)logicalPage].PhysicalBase = physicalBase;
 
-            // Mark the physical page frame that now backs this logical page as occupied
-            IMemPage? frame = pageTable.FirstOrDefault(p => p.PhysicalBase == physicalBase);
+            // Mark the frame as occupied in the global pool
+            IMemPage? frame = physicalFramePool.FirstOrDefault(p => p.PhysicalBase == physicalBase);
             if (frame != null)
                 frame.IsOccupied = true;
         }

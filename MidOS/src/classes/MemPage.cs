@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MidOS.src.classes
 {
-    internal class MemPage : IMemPage
+    public class MemPage : IMemPage
     {
         public uint PhysicalBase { get; set; }
         public bool IsOccupied { get; set; }

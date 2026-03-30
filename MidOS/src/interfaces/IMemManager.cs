@@ -78,6 +78,13 @@ namespace MidOS.src.interfaces
         uint GetPageSize();
 
         /// <summary>
+        /// Replaces the active page translation table with the provided per-process table.
+        /// Call this on every context switch so the MMU uses the incoming process's mappings.
+        /// </summary>
+        /// <param name="table">The process's page table (WorkingSetPages from its PCB).</param>
+        void SetPageTable(List<IMemPage> table);
+
+        /// <summary>
         /// Marks all page frames as unoccupied, resetting the allocator for the next process.
         /// </summary>
         void FreeAllPages();
