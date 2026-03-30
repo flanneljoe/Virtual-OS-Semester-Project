@@ -17,5 +17,11 @@ namespace MidOS.src.interfaces
         /// Whether this page frame is currently allocated to a process.
         /// </summary>
         bool IsOccupied { get; set; }
+
+        /// <summary>
+        /// Whether this page frame is a shared memory region reserved at OS startup.
+        /// Shared frames are never handed to individual processes by AllocatePhysicalPage.
+        /// </summary>
+        bool IsShared { get; set; }
     }
 }

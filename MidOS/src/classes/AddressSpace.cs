@@ -21,12 +21,17 @@ namespace MidOS.src.classes
         public uint GlobalDataBase { get; } = globalDataBase;
         public uint GlobalDataLimit { get; private set; } = globalDataLimit;
 
+        // Shared segment starts at StackBase and grows upward as pages are mapped via mapSharedMem.
+        public uint SharedBase { get; private set; } = stackBase;
+        public uint SharedLimit { get; private set; } = stackBase;
+
         public bool ContainsAddr(uint addr, uint size)
         {
             return IsCodeAddr(addr, size) ||
                 IsDataAddr(addr, size) ||
                 IsHeapAddr(addr, size) ||
-                IsStackAddr(addr, size);
+                IsStackAddr(addr, size) ||
+                IsSharedAddr(addr, size);
         }
 
         public bool IsCodeAddr(uint addr, uint size)
@@ -47,6 +52,19 @@ namespace MidOS.src.classes
         public bool IsHeapAddr(uint addr, uint size)
         {
             return InSegment(addr, size, HeapBase, HeapLimit);
+        }
+
+        public bool IsSharedAddr(uint addr, uint size)
+        {
+            return InSegment(addr, size, SharedBase, SharedLimit);
+        }
+
+        // Maps one page into the shared segment and returns its virtual base address.
+        public uint MapSharedPage(uint pageSize)
+        {
+            uint virtualBase = SharedLimit;
+            SharedLimit += pageSize;
+            return virtualBase;
         }
 
         private static bool InSegment(uint addr, uint size, uint segmentBase, uint segmentLimit)

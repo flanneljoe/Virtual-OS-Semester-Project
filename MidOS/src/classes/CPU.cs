@@ -840,6 +840,65 @@ namespace MidOS.src.classes
                 currentProc.Priority = p1;
             AdvanceIP();
         }
+
+        private void Exec_MapSharedMem(uint p1, uint p2)
+        {
+            if (currentProc == null) return;
+
+            // p1 = shared region ID (immediate), p2 = destination register for virtual base address
+            uint physBase    = mem.GetSharedFrameBase(p1);
+            uint pageSize    = mem.GetPageSize();
+
+            // Extend this process's shared segment by one page and get its virtual base address
+            uint virtualBase = currentProc.GetAddressSpace().MapSharedPage(pageSize);
+
+            // Wire the logical page → shared physical frame in the active page table
+            // (pageTable and proc.WorkingSetPages are the same list reference via SetPageTable)
+            mem.MapLogicalPage(virtualBase / pageSize, physBase);
+
+            SetRegVal(p2, virtualBase);
+            AdvanceIP();
+        }
+
+        private void Exec_AquireLock(uint p1, uint p2)
+        {
+            return;
+        }
+
+        private void Exec_AcquireLockI(uint p1, uint p2)
+        {
+            return;
+        }
+
+        private void Exec_ReleaseLock(uint p1, uint p2)
+        {
+            return;
+        }
+
+        private void Exec_ReleaseLockI(uint p1, uint p2)
+        {
+            return;
+        }
+
+        private void Exec_SignalEvent(uint p1, uint p2)
+        {
+            return;
+        }
+
+        private void Exec_WaitEvent(uint p1, uint p2)
+        {
+            return;
+        }
+
+        private void Exec_SignalEventI(uint p1, uint p2)
+        {
+            return;
+        }
+
+        private void Exec_WaitEventI(uint p1, uint p2)
+        {
+            return;
+        }
         #endregion
     }
 

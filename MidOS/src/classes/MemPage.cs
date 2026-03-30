@@ -11,6 +11,7 @@ namespace MidOS.src.classes
     {
         public uint PhysicalBase { get; set; }
         public bool IsOccupied { get; set; }
+        public bool IsShared { get; set; } = false;
 
         public MemPage(uint physicalBase, bool isOccupied = false)
         {

@@ -120,7 +120,19 @@ namespace MidOS.src.models
             { "inputc", 42 },
 
             { "setPriority", 43 },
-            { "setPriorityI", 44 }
+            { "setPriorityI", 44 },
+
+            { "MapSharedMem", 45 },
+
+            { "AcquireLock", 46 },
+            { "AcquireLockI", 47 },
+            { "ReleaseLock", 48},
+            { "ReleaseLockI", 49 },
+
+            { "SignalEvent", 50 },
+            { "WaitEvent", 51 },
+            { "SignalEventI", 52 },
+            { "WaitEventI", 53 },
         };
 
         public static bool IsValidCode(string insn)

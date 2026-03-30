@@ -3,5 +3,6 @@
   "HeapSize": 1024,
   "StackSize": 128,
   "PageSize": 256,
-  "TimeQuantum": 10
+  "TimeQuantum": 10,
+  "SharedMemoryCount": 2
 }

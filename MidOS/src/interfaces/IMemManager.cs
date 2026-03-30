@@ -94,5 +94,12 @@ namespace MidOS.src.interfaces
         /// </summary>
         /// <param name="physicalBase">The physical base address of the page frame to free.</param>
         void FreePage(uint physicalBase);
+
+        /// <summary>
+        /// Returns the physical base address of the shared frame with the given region ID.
+        /// </summary>
+        /// <param name="regionId">Zero-based index into the shared frame pool.</param>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when regionId is out of range.</exception>
+        uint GetSharedFrameBase(uint regionId);
     }
 }

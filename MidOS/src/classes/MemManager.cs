@@ -40,18 +40,25 @@ namespace MidOS.src.classes
             pageSize = config.PageSize;
             physicalFramePool = [];
             pageTable = [];
-            InitPageTable(memSize);
+            InitPageTable(memSize, config.SharedMemoryCount);
         }
 
-        private void InitPageTable(int memSize)
+        private void InitPageTable(int memSize, uint sharedCount)
         {
-            // Populate the global physical frame pool with an identity mapping.
-            // Programs with less than pageSize memory still need a frame, so use ceiling division.
             int totalPages = (memSize + (int)pageSize - 1) / (int)pageSize;
-            for (int i = 0; i < totalPages; i++)
-            {
+
+            // Need to adjust shared page count for small programs < 1 page long
+            // Larger programs are unaffected
+            uint effectiveSharedCount = (uint)Math.Min((int)sharedCount, Math.Max(0, totalPages - 1));
+
+            // Reserve shared frames first at the lowest physical addresses.
+            // Marked IsShared=true and IsOccupied=true so AllocatePhysicalPage ignores them
+            for (int i = 0; i < effectiveSharedCount; i++)
+                physicalFramePool.Add(new MemPage((uint)(i * pageSize)) { IsShared = true, IsOccupied = true });
+
+            // Process frames occupy all remaining physical pages.
+            for (int i = (int)effectiveSharedCount; i < totalPages; i++)
                 physicalFramePool.Add(new MemPage((uint)(i * pageSize)));
-            }
         }
 
         private uint Translate(uint virtualAddr)
@@ -59,10 +66,13 @@ namespace MidOS.src.classes
             uint page = virtualAddr / pageSize;
             uint offset = virtualAddr % pageSize;
 
-            // If full on pages, try to get another page 
-            if (page >= (uint)pageTable.Count)
+            // allocate a process frame on first access to an unmapped page,
+            // or a gap entry left by MapLogicalPage padding where IsOccupied is false
+            bool needsAllocation = page >= (uint)pageTable.Count || !pageTable[(int)page].IsOccupied;
+
+            if (needsAllocation)
             {
-                IMemPage? free = physicalFramePool.FirstOrDefault(p => !p.IsOccupied);
+                IMemPage? free = physicalFramePool.FirstOrDefault(p => !p.IsOccupied && !p.IsShared);
                 if (free == null)
                     throw new OutOfMemoryException($"MemManager: No free physical frames for virtual address {virtualAddr} (page {page}).");
 
@@ -70,6 +80,7 @@ namespace MidOS.src.classes
                 while (pageTable.Count <= (int)page)
                     pageTable.Add(new MemPage(0));
                 pageTable[(int)page].PhysicalBase = free.PhysicalBase;
+                pageTable[(int)page].IsOccupied = true;
             }
 
             return pageTable[(int)page].PhysicalBase + offset;
@@ -160,12 +171,21 @@ namespace MidOS.src.classes
 
         public uint AllocatePhysicalPage()
         {
-            IMemPage? free = physicalFramePool.FirstOrDefault(p => !p.IsOccupied);
+            IMemPage? free = physicalFramePool.FirstOrDefault(p => !p.IsOccupied && !p.IsShared);
             if (free == null)
                 throw new OutOfMemoryException("MemManager: No free physical page frames available.");
 
             free.IsOccupied = true;
             return free.PhysicalBase;
+        }
+
+        public uint GetSharedFrameBase(uint regionId)
+        {
+            var shared = physicalFramePool.Where(p => p.IsShared).ToList();
+            if (regionId >= shared.Count)
+                throw new ArgumentOutOfRangeException(nameof(regionId),
+                    $"MemManager: Shared region {regionId} does not exist (only {shared.Count} shared regions).");
+            return shared[(int)regionId].PhysicalBase;
         }
 
         public void MapLogicalPage(uint logicalPage, uint physicalBase)
@@ -177,6 +197,7 @@ namespace MidOS.src.classes
             }
 
             pageTable[(int)logicalPage].PhysicalBase = physicalBase;
+            pageTable[(int)logicalPage].IsOccupied = true;
 
             // Mark the frame as occupied in the global pool
             IMemPage? frame = physicalFramePool.FirstOrDefault(p => p.PhysicalBase == physicalBase);
