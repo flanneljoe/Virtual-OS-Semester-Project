@@ -62,11 +62,14 @@ namespace MidOS.src.classes
 
         public void GrowHeap(uint bytes)
         {
+            // may need this later
             throw new NotImplementedException();
         }
 
         public void GrowStack(uint bytes)
         {
+            // probably won't need this since SP tracks top of stack
+            // keeping just in case
             throw new NotImplementedException();
         }
     }

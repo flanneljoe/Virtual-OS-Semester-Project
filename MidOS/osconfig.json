@@ -1,5 +1,6 @@
 {
   "GlobalDataSize": 2048,
   "HeapSize": 1024,
-  "StackSize": 128
+  "StackSize": 128,
+  "PageSize": 256
 }

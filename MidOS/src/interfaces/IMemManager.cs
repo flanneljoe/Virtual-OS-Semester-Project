@@ -56,5 +56,36 @@ namespace MidOS.src.interfaces
         /// </summary>
         /// <param name="ctx"><seealso cref="AddressSpace"/> to set the current address space to.</param>
         void SetContext(AddressSpace ctx);
+
+        /// <summary>
+        /// Allocates the next free physical page frame and marks it as occupied.
+        /// </summary>
+        /// <returns>The physical base address of the allocated page frame.</returns>
+        /// <exception cref="OutOfMemoryException">Thrown when no free page frames are available.</exception>
+        uint AllocatePhysicalPage();
+
+        /// <summary>
+        /// Maps a logical page number to a specific physical base address in the page table.
+        /// </summary>
+        /// <param name="logicalPage">The logical page number to map.</param>
+        /// <param name="physicalBase">The physical base address to map it to.</param>
+        void MapLogicalPage(uint logicalPage, uint physicalBase);
+
+        /// <summary>
+        /// Returns the size of each page in bytes as configured in OSConfig.
+        /// </summary>
+        /// <returns>The page size in bytes.</returns>
+        uint GetPageSize();
+
+        /// <summary>
+        /// Marks all page frames as unoccupied, resetting the allocator for the next process.
+        /// </summary>
+        void FreeAllPages();
+
+        /// <summary>
+        /// Marks the page frame at the given physical base address as unoccupied.
+        /// </summary>
+        /// <param name="physicalBase">The physical base address of the page frame to free.</param>
+        void FreePage(uint physicalBase);
     }
 }

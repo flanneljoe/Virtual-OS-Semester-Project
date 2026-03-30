@@ -1,4 +1,4 @@
-﻿using MidOS.src.interfaces;
+using MidOS.src.interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,29 +13,56 @@ namespace MidOS.src.classes
 
         private AddressSpace? ctx;
 
-        public MemManager(int memSize)
+        private uint pageSize;
+        private List<IMemPage> pageTable;
+
+        public uint GetPageSize()
+        {
+            return pageSize;
+        }
+
+        public MemManager(int memSize, OSConfig config)
         {
             memory = new PhysicalMemory(memSize);
+            pageSize = config.PageSize;
+            pageTable = [];
+            InitPageTable(memSize);
+        }
+
+        private void InitPageTable(int memSize)
+        {
+            // Populate an identity mapping: logical page i == physical address i * pageSize.
+            // Use ceiling division so that memory sizes smaller than one page still get one frame.
+            int totalPages = (memSize + (int)pageSize - 1) / (int)pageSize;
+            for (int i = 0; i < totalPages; i++)
+            {
+                pageTable.Add(new MemPage((uint)(i * pageSize)));
+            }
+        }
+
+        private uint Translate(uint virtualAddr)
+        {
+            uint page = virtualAddr / pageSize;
+            uint offset = virtualAddr % pageSize;
+
+            if (page >= pageTable.Count)
+                throw new ArgumentOutOfRangeException(nameof(virtualAddr), $"MemManager: Virtual address {virtualAddr} maps to page {page} which is out of range.");
+
+            return pageTable[(int)page].PhysicalBase + offset;
         }
 
         public void WriteAddr(uint addr, uint val)
         {
-            // Sets the address in memory to the given value
-            // This function shouldn't be called directly by the user
-            memory.SetByte(addr, val);
+            memory.SetByte(Translate(addr), val);
         }
 
         public uint ReadAddr(uint addr)
         {
-            // Gets te address in memory
-            // This function should be called direclty by the user
-            return memory.GetByte(addr);
+            return memory.GetByte(Translate(addr));
         }
 
         public uint GetAddr(uint addr)
         {
-            // Checks if the address is valid
-            // Returns the value if it is, throws an exception if not
             if (!ValidAddr(addr))
                 throw new ArgumentException("MemManager: Attempted to get the value of an invalid memory address.", "addr");
             return ReadAddr(addr);
@@ -43,8 +70,6 @@ namespace MidOS.src.classes
 
         public void SetAddr(uint addr, uint val)
         {
-            // Checks if the address is valid
-            // Writes the value in memory if it is, throws an exception if not
             if (!ValidAddr(addr))
             {
                 throw new ArgumentException("MemManager: Attempted to set the value of an invalid memory address.", $"addr: {addr.ToString()}");
@@ -54,14 +79,12 @@ namespace MidOS.src.classes
 
         public (uint insn, uint p1, uint p2) GetInsn(uint addr)
         {
-            // Attempts to get all three instruction values
-            // Throws an exception on the first invalid instruction
             uint insn, p1, p2;
             try
             {
                 insn = GetAddr(addr);
             }
-            catch (ArgumentException e) 
+            catch (ArgumentException e)
             {
                 throw new ArgumentException("MemManager: Invalid instruction address.", "addr", e);
             }
@@ -77,7 +100,8 @@ namespace MidOS.src.classes
             }
 
             return (insn, p1, p2);
-        }       
+        }
+
         public void SetContext(AddressSpace ctx)
         {
             this.ctx = ctx;
@@ -93,6 +117,47 @@ namespace MidOS.src.classes
             {
                 return 0 <= addr && addr < memory.GetSize();
             }
+        }
+
+        public void FreeAllPages()
+        {
+            foreach (IMemPage page in pageTable)
+            {
+                page.IsOccupied = false;
+            }
+        }
+
+        public void FreePage(uint physicalBase)
+        {
+            IMemPage? frame = pageTable.FirstOrDefault(p => p.PhysicalBase == physicalBase);
+            if (frame != null)
+                frame.IsOccupied = false;
+        }
+
+        public uint AllocatePhysicalPage()
+        {
+            IMemPage? free = pageTable.FirstOrDefault(p => !p.IsOccupied);
+            if (free == null)
+                throw new OutOfMemoryException("MemManager: No free physical page frames available.");
+
+            free.IsOccupied = true;
+            return free.PhysicalBase;
+        }
+
+        public void MapLogicalPage(uint logicalPage, uint physicalBase)
+        {
+            // Grow the page table if needed to accommodate the logical page number
+            while (pageTable.Count <= (int)logicalPage)
+            {
+                pageTable.Add(new MemPage(0));
+            }
+
+            pageTable[(int)logicalPage].PhysicalBase = physicalBase;
+
+            // Mark the physical page frame that now backs this logical page as occupied
+            IMemPage? frame = pageTable.FirstOrDefault(p => p.PhysicalBase == physicalBase);
+            if (frame != null)
+                frame.IsOccupied = true;
         }
     }
 }

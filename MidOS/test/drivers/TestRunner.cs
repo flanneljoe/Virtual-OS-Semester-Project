@@ -27,6 +27,8 @@ namespace MidOS.test.drivers
             TestDriver11.Run();
             Console.WriteLine();
             TestDriver12.Run();
+            Console.WriteLine();
+            TestDriver13.Run();
         }
 
         internal static void Run(int n)
@@ -45,6 +47,7 @@ namespace MidOS.test.drivers
                 case 10: TestDriver10.Run(); break;
                 case 11: TestDriver11.Run(); break;
                 case 12: TestDriver12.Run(); break;
+                case 13: TestDriver13.Run(); break;
                 default:
                     Console.WriteLine($"Error: No test {n}.");
                     break;

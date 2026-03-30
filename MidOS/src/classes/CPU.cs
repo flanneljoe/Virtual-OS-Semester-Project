@@ -24,9 +24,6 @@ namespace MidOS.src.classes
         // Instruction flags, true when set, false when clear
         private bool ZERO_FLAG, SIGN_FLAG = false;
 
-        private uint HEAP_SIZE, GLOBAL_DATA_SIZE = 0;
-        private uint STACK_SIZE = 4;
-
         private uint INSN_SIZE = 4;
 
         private ulong clock = 0;
@@ -47,8 +44,6 @@ namespace MidOS.src.classes
             SIGN_FLAG = false;
 
             regs = new uint[15];
-
-            mem = new MemManager(virtualMemSize);
 
             this.programFiles = programFiles;
 
@@ -72,6 +67,8 @@ namespace MidOS.src.classes
                 Console.WriteLine($"An unexpected error occurred: {ex.Message}");
             }
 
+            mem = new MemManager(virtualMemSize, config ?? new OSConfig());
+
             Run();
         }
 
@@ -87,6 +84,9 @@ namespace MidOS.src.classes
                 regs = new uint[15];
                 SetIP(PROG_BASE);
                 IsHalted = false;
+
+                // Free all page frames so the next program can allocate from the start
+                mem.FreeAllPages();
 
                 IProgram p = new DefaultProgram(file, PROG_BASE);
                 ProgramLoader loader = new ProgramLoader(p, mem);
@@ -802,6 +802,12 @@ namespace MidOS.src.classes
                 p.SetName(lines.First());
 
                 uint currentAddr = p.GetProgramBase();
+                uint pageSize = mem.GetPageSize();
+                uint currentLogicalPage = currentAddr / pageSize;
+
+                // Allocate and map the first physical page for this program
+                uint physBase = mem.AllocatePhysicalPage();
+                mem.MapLogicalPage(currentLogicalPage, physBase);
 
                 foreach (string line in lines.Skip(1))
                 {
@@ -820,14 +826,13 @@ namespace MidOS.src.classes
                     // Look up the instruction code in the OpCode struct's dictonary
                     if (!OpCodes.IsValidCode(tokens[0]))
                         throw new Exception("Found invalid instruction: " +  tokens[0]);
-                    
+
                     uint opCode = OpCodes.GetOpCode(tokens[0]);
 
                     // Write value of the OpCode to memory
-                    mem.WriteAddr(currentAddr++, (uint)opCode);
+                    WritePagedByte(currentAddr++, opCode, ref currentLogicalPage, pageSize);
 
-
-                    // Track how many parameter bytes have been written (opcode already written)
+                    // Track how many parameter bytes have been written
                     int paramBytes = 0;
 
                     if (tokens.Length > 1)
@@ -842,15 +847,15 @@ namespace MidOS.src.classes
                                 switch (parm[0])
                                 {
                                     case 'r':
-                                        mem.WriteAddr(currentAddr++, (uint)(int.Parse(parm[1..parm.Length])));
+                                        WritePagedByte(currentAddr++, (uint)(int.Parse(parm[1..parm.Length])), ref currentLogicalPage, pageSize);
                                         paramBytes++;
                                         break;
                                     case '#':
-                                        mem.WriteAddr(currentAddr++, (uint)int.Parse(parm[1..parm.Length]));
+                                        WritePagedByte(currentAddr++, (uint)int.Parse(parm[1..parm.Length]), ref currentLogicalPage, pageSize);
                                         paramBytes++;
                                         break;
                                     case '@':
-                                        mem.WriteAddr(currentAddr++, (uint)parm[1]);
+                                        WritePagedByte(currentAddr++, (uint)parm[1], ref currentLogicalPage, pageSize);
                                         paramBytes++;
                                         break;
                                     default:
@@ -863,7 +868,7 @@ namespace MidOS.src.classes
                     // Pad to exactly 3 parameter bytes so every instruction is 4 bytes wide
                     while (paramBytes < 3)
                     {
-                        mem.WriteAddr(currentAddr++, (uint)0);
+                        WritePagedByte(currentAddr++, 0, ref currentLogicalPage, pageSize);
                         paramBytes++;
                     }
 
@@ -878,6 +883,23 @@ namespace MidOS.src.classes
             {
                 Console.WriteLine($"An uxpected error occured while decoding program file: {e.Message}");
             }
+        }
+
+        // Writes a byte to the given logical address
+        // allocates a new page frame if the address crosses into a new logical page.
+        private void WritePagedByte(uint addr, uint value, ref uint currentLogicalPage, uint pageSize)
+        {
+            uint page = addr / pageSize;
+
+            if (page != currentLogicalPage)
+            {
+                // Crossed into a new logical page — allocate and map a fresh physical frame
+                uint physBase = mem.AllocatePhysicalPage();
+                mem.MapLogicalPage(page, physBase);
+                currentLogicalPage = page;
+            }
+
+            mem.WriteAddr(addr, value);
         }
     }
 
