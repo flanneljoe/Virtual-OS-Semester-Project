@@ -1,0 +1,8 @@
+EventTest-ProcessA: Loop 15 times, then signal event 0
+movi r1, #0         ; loop counter
+movi r2, #15        ; loop limit
+incr r1             ; counter++
+cmpr r1, r2         ; compare with limit
+jlti #-8            ; if counter < 15, jump back to incr (-8 = 2 insns back)
+SignalEventI #1     ; signal event 1 — wakes Process B
+exit

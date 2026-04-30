@@ -38,6 +38,14 @@ namespace MidOS.src.classes
         private List<string> programFiles = [];
         private OSConfig? config;
 
+        private const int LOCK_COUNT = 10;
+        private uint[] lockOwners = new uint[LOCK_COUNT];       // 0 = free, else ProcessId of holder
+        private Queue<PCB>[] lockWaiters = new Queue<PCB>[LOCK_COUNT];
+
+        private const int EVENT_COUNT = 10;
+        private bool[] eventSignaled = new bool[EVENT_COUNT];
+        private Queue<PCB>[] eventWaiters = new Queue<PCB>[EVENT_COUNT];
+
         public CPU(int virtualMemSize, List<string> programFiles)
         {
             ZERO_FLAG = false;
@@ -68,6 +76,12 @@ namespace MidOS.src.classes
             }
 
             mem = new MemManager(virtualMemSize, config ?? new OSConfig());
+
+            for (int i = 0; i < LOCK_COUNT; i++)
+                lockWaiters[i] = new Queue<PCB>();
+
+            for (int i = 0; i < EVENT_COUNT; i++)
+                eventWaiters[i] = new Queue<PCB>();
 
             Run();
         }
@@ -392,10 +406,23 @@ namespace MidOS.src.classes
 
                 case "setPriority":
                     return Exec_SetPriority;
-                    
+
                 case "setPriorityI":
                     return Exec_SetpriorityI;
-                    
+
+                case "AcquireLock":
+                    return Exec_AquireLock;
+                case "AcquireLockI":
+                    return Exec_AcquireLockI;
+                case "ReleaseLock":
+                    return Exec_ReleaseLock;
+                case "ReleaseLockI":
+                    return Exec_ReleaseLockI;
+
+                case "SignalEvent":  return Exec_SignalEvent;
+                case "WaitEvent":   return Exec_WaitEvent;
+                case "SignalEventI": return Exec_SignalEventI;
+                case "WaitEventI":  return Exec_WaitEventI;
 
                 default:
                     return Exec_InvalidInsn;
@@ -757,8 +784,15 @@ namespace MidOS.src.classes
 
         private void Exec_Exit(uint p1, uint p2)
         {
-            if (currentProc != null)
-                currentProc.State = ProcessState.Terminated;
+            if (currentProc == null) return;
+
+            for (uint i = 0; i < LOCK_COUNT; i++)
+            {
+                if (lockOwners[i] == currentProc.ProcessId)
+                    ReleaseLockById(i + 1);  // locks are 1-based; array is 0-based
+            }
+
+            currentProc.State = ProcessState.Terminated;
         }
 
         private void Exec_Popr(uint p1, uint p2)
@@ -788,7 +822,7 @@ namespace MidOS.src.classes
         private void Exec_Input(uint p1, uint p2)
         {
             // A 64-bit value doesn't fit in a single 32-bit register.
-            // Convention: high 32 bits go into r[p1], low 32 bits into r[p1+1].
+            // high 32 bits go into r[p1], low 32 bits into r[p1+1].
             if (p1 + 1 >= regs.Length)
             {
                 Console.WriteLine($"input: register r{p1} has no adjacent register for the low word.");
@@ -806,7 +840,7 @@ namespace MidOS.src.classes
                 return;
             }
 
-            SetRegVal(p1,     (uint)(value >> 32));        // high word
+            SetRegVal(p1, (uint)(value >> 32)); // high word
             SetRegVal(p1 + 1, (uint)(value & 0xFFFFFFFF)); // low word
             AdvanceIP();
             // Yield after I/O so other processes can run while this one re-enters the ready queue
@@ -852,7 +886,7 @@ namespace MidOS.src.classes
             // Extend this process's shared segment by one page and get its virtual base address
             uint virtualBase = currentProc.GetAddressSpace().MapSharedPage(pageSize);
 
-            // Wire the logical page → shared physical frame in the active page table
+            // Wire the logical page to shared physical frame in the active page table
             // (pageTable and proc.WorkingSetPages are the same list reference via SetPageTable)
             mem.MapLogicalPage(virtualBase / pageSize, physBase);
 
@@ -860,44 +894,147 @@ namespace MidOS.src.classes
             AdvanceIP();
         }
 
+        private void ReleaseLockById(uint lockId)
+        {
+            if (lockId == 0 || lockId > LOCK_COUNT) 
+                return;
+
+            uint idx = lockId - 1;
+            if (currentProc != null && lockOwners[idx] != currentProc.ProcessId) 
+                return;
+
+            if (lockWaiters[idx].Count > 0)
+            {
+                PCB next = lockWaiters[idx].Dequeue();
+                lockOwners[idx] = next.ProcessId;
+                next.State = ProcessState.Ready;
+                // next's IP still points at AcquireLock; it re-executes and finds lockOwners already set to it
+            }
+            else
+            {
+                lockOwners[idx] = 0;
+            }
+        }
+
         private void Exec_AquireLock(uint p1, uint p2)
         {
-            return;
+            uint lockId = GetRegVal(p1);
+            if (lockId == 0 || lockId > LOCK_COUNT || currentProc == null) 
+            {
+                AdvanceIP(); 
+                return;
+            }
+            uint idx = lockId - 1;
+
+            if (lockOwners[idx] == 0)
+            {
+                lockOwners[idx] = currentProc.ProcessId;
+                AdvanceIP();
+            }
+            else
+            {
+                currentProc.State = ProcessState.WaitingOnLock;
+                lockWaiters[idx].Enqueue(currentProc);
+            }
         }
 
         private void Exec_AcquireLockI(uint p1, uint p2)
         {
-            return;
+            uint lockId = p1;
+            if (lockId == 0 || lockId > LOCK_COUNT || currentProc == null) 
+            {
+                AdvanceIP(); 
+                return; 
+            }
+            uint idx = lockId - 1;
+
+            if (lockOwners[idx] == 0)
+            {
+                lockOwners[idx] = currentProc.ProcessId;
+                AdvanceIP();
+            }
+            else
+            {
+                currentProc.State = ProcessState.WaitingOnLock;
+                lockWaiters[idx].Enqueue(currentProc);
+            }
         }
 
         private void Exec_ReleaseLock(uint p1, uint p2)
         {
-            return;
+            ReleaseLockById(GetRegVal(p1));
+            AdvanceIP();
         }
 
         private void Exec_ReleaseLockI(uint p1, uint p2)
         {
-            return;
+            ReleaseLockById(p1);
+            AdvanceIP();
+        }
+
+        private void SignalEventById(uint eventId)
+        {
+            if (eventId == 0 || eventId > EVENT_COUNT) return;
+            uint idx = eventId - 1;
+
+            if (eventWaiters[idx].Count > 0)
+            {
+                while (eventWaiters[idx].Count > 0)
+                {
+                    PCB waiter = eventWaiters[idx].Dequeue();
+                    waiter.GetRegisters()[11] += INSN_SIZE;  // advance past WaitEvent
+                    waiter.State = ProcessState.Ready;
+                }
+                eventSignaled[idx] = false;  // consumed by waiters
+            }
+            else
+            {
+                eventSignaled[idx] = true;   // remember for next WaitEvent
+            }
+        }
+
+        private void WaitEventById(uint eventId)
+        {
+            if (eventId == 0 || eventId > EVENT_COUNT || currentProc == null) 
+            { 
+                AdvanceIP(); 
+                return; 
+            }
+            uint idx = eventId - 1;
+
+            if (eventSignaled[idx])
+            {
+                eventSignaled[idx] = false;  // consume stored signal
+                AdvanceIP();
+            }
+            else
+            {
+                currentProc.State = ProcessState.WaitingOnEvent;
+                eventWaiters[idx].Enqueue(currentProc);
+                // don't advance the IP, SignalEventById advances waiters IPs directly
+            }
         }
 
         private void Exec_SignalEvent(uint p1, uint p2)
         {
-            return;
-        }
-
-        private void Exec_WaitEvent(uint p1, uint p2)
-        {
-            return;
+            SignalEventById(GetRegVal(p1));
+            AdvanceIP();
         }
 
         private void Exec_SignalEventI(uint p1, uint p2)
         {
-            return;
+            SignalEventById(p1);
+            AdvanceIP();
+        }
+
+        private void Exec_WaitEvent(uint p1, uint p2)
+        {
+            WaitEventById(GetRegVal(p1));
         }
 
         private void Exec_WaitEventI(uint p1, uint p2)
         {
-            return;
+            WaitEventById(p1);
         }
         #endregion
     }

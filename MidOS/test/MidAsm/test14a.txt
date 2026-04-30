@@ -1,0 +1,11 @@
+LockTest-ProcessA: Acquire lock 0, print 1 twelve times, release lock 0
+AcquireLockI #1     ; acquire OS lock 1 (blocks if held by B)
+movi r1, #1         ; value to print
+movi r2, #12        ; loop limit
+movi r3, #0         ; loop counter
+incr r3             ; counter++
+printr r1           ; print 1
+cmpr r3, r2         ; compare counter with limit
+jlti #-12           ; if counter < 12, jump back to incr (-12 = 3 insns back)
+ReleaseLockI #1     ; release lock 1
+exit

@@ -1,0 +1,5 @@
+EventTest-ProcessB: Wait on event 0, then print 99 to confirm wakeup
+WaitEventI #1       ; block until Process A signals event 1
+movi r1, #99        ; confirmation value
+printr r1           ; prints 99 only after being woken
+exit

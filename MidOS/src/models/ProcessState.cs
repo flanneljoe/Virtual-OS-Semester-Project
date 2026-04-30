@@ -12,7 +12,8 @@ namespace MidOS.src.models
         Ready,          // in the ready queue, waiting for CPU time
         Running,        // currently executing on the CPU
         WaitingAsleep,  // sleeping after a sleep instruction
-        Terminated      // finished executing, waiting to be cleaned up
-        // WaitingOnLock and WaitingOnEvent are reserved for a future module
+        WaitingOnLock,   // blocked waiting to acquire a lock
+        WaitingOnEvent,  // blocked waiting for an event to be signaled
+        Terminated       // finished executing, waiting to be cleaned up
     }
 }
