@@ -104,12 +104,19 @@ namespace MidOS.src.classes
                 // ProgramLoader can write directly into proc.WorkingSetPages
                 PCB proc = new PCB(p, new AddressSpace(0, 0, 0, 0, 0, 0, 0, 0), config.TimeQuantum);
 
-                // Point the MMU at this process's page table so the
+                // Register the process and point the MMU at its page table so the
                 // loader writes to physical frames that belong to this process
+                mem.RegisterProcess(proc.ProcessId, proc.WorkingSetPages);
+                mem.SetCurrentProcess(proc.ProcessId);
                 mem.SetPageTable(proc.WorkingSetPages);
 
                 ProgramLoader loader = new ProgramLoader(p, mem, proc.WorkingSetPages);
                 loader.LoadProgram();
+
+                // Code pages were written by the loader, not by the process — reset dirty flags
+                // so clean pages don't trigger unnecessary swap writes when evicted
+                foreach (IMemPage page in proc.WorkingSetPages)
+                    page.IsDirty = false;
 
                 // Compute the full virtual address layout now that code size is known
                 uint codeBase  = PROG_BASE;
@@ -156,6 +163,7 @@ namespace MidOS.src.classes
                 }
 
                 next.State = ProcessState.Running;
+                mem.SetCurrentProcess(next.ProcessId);
                 mem.SetPageTable(next.WorkingSetPages);
                 mem.SetContext(next.GetAddressSpace());
 
@@ -175,7 +183,7 @@ namespace MidOS.src.classes
                 }
             }
 
-            // Print per-process statistics
+            // Print per-process and memory statistics
             Console.WriteLine("\n--- Process Statistics ---");
             foreach (PCB proc in scheduler.GetAll())
             {
@@ -183,6 +191,8 @@ namespace MidOS.src.classes
                     $"Process {proc.ProcessId}: " +
                     $"{proc.ClockCyclesUsed} cycles, {proc.ContextSwitchCount} context switches");
             }
+            Console.WriteLine($"\n--- Memory Statistics ---");
+            Console.WriteLine($"Total page faults: {mem.PageFaultCount}");
         }
 
         public uint GetRegAddr(uint reg)
@@ -285,6 +295,7 @@ namespace MidOS.src.classes
         public void Tick()
         {
             clock++;
+            mem.Tick();
         }
 
         public Action<uint, uint> TryDecode(uint opCode)
@@ -792,6 +803,7 @@ namespace MidOS.src.classes
                     ReleaseLockById(i + 1);  // locks are 1-based; array is 0-based
             }
 
+            mem.UnregisterProcess(currentProc.ProcessId);
             currentProc.State = ProcessState.Terminated;
         }
 

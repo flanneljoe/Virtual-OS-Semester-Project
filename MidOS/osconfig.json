@@ -4,5 +4,6 @@
   "StackSize": 128,
   "PageSize": 256,
   "TimeQuantum": 10,
-  "SharedMemoryCount": 2
+  "SharedMemoryCount": 2,
+  "PhysicalMemorySize": 4096
 }

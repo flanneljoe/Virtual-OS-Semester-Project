@@ -14,5 +14,6 @@ namespace MidOS.src.classes
         public uint PageSize { get; set; } = 256;
         public uint TimeQuantum { get; set; } = 10;
         public uint SharedMemoryCount { get; set; } = 2;
+        public uint PhysicalMemorySize { get; set; } = 4096;
     }
 }

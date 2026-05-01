@@ -1,4 +1,4 @@
-﻿using MidOS.src.classes;
+using MidOS.src.classes;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -59,9 +59,10 @@ namespace MidOS.src.interfaces
 
         /// <summary>
         /// Allocates the next free physical page frame and marks it as occupied.
+        /// If no free frames exist, evicts the least recently used page to make room.
         /// </summary>
         /// <returns>The physical base address of the allocated page frame.</returns>
-        /// <exception cref="OutOfMemoryException">Thrown when no free page frames are available.</exception>
+        /// <exception cref="OutOfMemoryException">Thrown when no page can be evicted.</exception>
         uint AllocatePhysicalPage();
 
         /// <summary>
@@ -101,5 +102,37 @@ namespace MidOS.src.interfaces
         /// <param name="regionId">Zero-based index into the shared frame pool.</param>
         /// <exception cref="ArgumentOutOfRangeException">Thrown when regionId is out of range.</exception>
         uint GetSharedFrameBase(uint regionId);
+
+        /// <summary>
+        /// Registers a process's page table with the memory manager for LRU eviction scanning.
+        /// Must be called before the process executes any instructions.
+        /// </summary>
+        /// <param name="pid">The process ID.</param>
+        /// <param name="workingSet">The process's per-process page table.</param>
+        void RegisterProcess(uint pid, List<IMemPage> workingSet);
+
+        /// <summary>
+        /// Removes a process from the eviction candidate pool and frees all of its physical frames.
+        /// Call this when a process terminates.
+        /// </summary>
+        /// <param name="pid">The process ID to unregister.</param>
+        void UnregisterProcess(uint pid);
+
+        /// <summary>
+        /// Sets the currently executing process so LRU eviction prefers not to evict its pages.
+        /// </summary>
+        /// <param name="pid">The process ID of the running process.</param>
+        void SetCurrentProcess(uint pid);
+
+        /// <summary>
+        /// Advances the memory manager's internal clock, used to timestamp LRU page accesses.
+        /// Should be called once per CPU clock tick.
+        /// </summary>
+        void Tick();
+
+        /// <summary>
+        /// Total number of page faults that have occurred across all processes.
+        /// </summary>
+        ulong PageFaultCount { get; }
     }
 }

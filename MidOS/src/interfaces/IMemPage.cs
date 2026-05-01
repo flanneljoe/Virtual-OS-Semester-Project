@@ -23,5 +23,22 @@ namespace MidOS.src.interfaces
         /// Shared frames are never handed to individual processes by AllocatePhysicalPage.
         /// </summary>
         bool IsShared { get; set; }
+
+        /// <summary>
+        /// Whether this virtual page is currently loaded in physical memory.
+        /// False means the page has been swapped out to disk and must be faulted back in.
+        /// </summary>
+        bool IsValid { get; set; }
+
+        /// <summary>
+        /// Whether this page has been written to since it was last loaded into physical memory.
+        /// Clean pages (IsDirty = false) that already have a swap copy can be evicted without a disk write.
+        /// </summary>
+        bool IsDirty { get; set; }
+
+        /// <summary>
+        /// The clock tick of the most recent access to this page. Used by the LRU eviction algorithm.
+        /// </summary>
+        ulong LastUsed { get; set; }
     }
 }
