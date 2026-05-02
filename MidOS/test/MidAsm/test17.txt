@@ -1,0 +1,29 @@
+TestDriver17-HeapAlloc
+; Test 1: Alloc 4 bytes (rounds up to 1 page), print the returned address
+movi r1, #4
+Alloc r1, r2
+printr r2
+
+; Write 99 to the allocated address, read back and print
+movi r3, #99
+movrm r2, r3
+movmr r4, r2
+printr r4
+
+; Free the block
+FreeMemory r2
+
+; Test 2: Alloc again after free — should return the same address as the first alloc
+movi r1, #4
+Alloc r1, r5
+printr r5
+
+; Free second alloc
+FreeMemory r5
+
+; Test 3: Over-allocation — request more than HeapSize (1024), expect 0
+movi r6, #2000
+Alloc r6, r7
+printr r7
+
+exit

@@ -1,10 +1,8 @@
+// Name: Joseph Feltz
+// zID: z2048486
+
 using MidOS.src.classes;
 using MidOS.src.models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MidOS.src.interfaces
 {
@@ -51,5 +49,8 @@ namespace MidOS.src.interfaces
 
         /// <summary>Returns a reference to the saved register file.</summary>
         uint[] GetRegisters();
+
+        /// <summary>True when this PCB represents the kernel idle process rather than a user program.</summary>
+        bool IsIdleProcess { get; }
     }
 }

@@ -1,11 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿// Name: Joseph Feltz
+// zID: z2048486
 
 namespace MidOS.src.classes
 {
+    /// <summary>
+    /// Holds the configuration values for the OS.
+    /// Values are set by the CPU on startup, read from osconfig.json.
+    /// Default values here serve as a fallback should the json fail to deserialize.
+    /// </summary>
     public class OSConfig
     {
         public uint GlobalDataSize { get; set; } = 0;

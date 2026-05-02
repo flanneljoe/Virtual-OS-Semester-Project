@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
+﻿// Name: Joseph Feltz
+// zID: z2048486
+
 using MidOS.test.drivers;
 
 namespace MidOS.src.classes
@@ -26,18 +23,38 @@ namespace MidOS.src.classes
                 return;
             }
 
-            if (args.Length == 0)
+            if (args.Length < 1)
             {
-                Console.WriteLine("Error: Missing Virtual Memory Size");
+                Console.WriteLine("Error: Missing program files to load.");
                 usage();
                 return;
             }
 
-            virtualMemSize = (int)Math.Ceiling(int.Parse(args[0]) / 8.0);
+            int fileStart = 0;
+            if (args[0] == "--page")
+            {
+                if (args.Length > 1)
+                {
+                    virtualMemSize = (int)Math.Ceiling(int.Parse(args[1]) / 8.0);       
+                    Console.WriteLine("Memory Size (ints): " +  virtualMemSize);
+                    fileStart = 2;
+                }
+                else
+                {
+                    Console.WriteLine("Error: Missing virtual page size.");
+                    usage();
+                    return;
+                }
+            }
 
-            Console.WriteLine("Memory Size: " +  virtualMemSize);
+            if (!(args.Length > fileStart))
+            {
+                Console.WriteLine("Error: Missing MidOS progam files.");
+                usage();
+                return;
+            }
 
-            pgmFiles = [.. args[1..args.Length]];
+            pgmFiles = [.. args[fileStart..args.Length]];
             Console.WriteLine("Program Files Provided: " + pgmFiles.Count);
 
             CPU c = new CPU(virtualMemSize, pgmFiles);
@@ -46,7 +63,7 @@ namespace MidOS.src.classes
 
         static void usage()
         {
-            Console.WriteLine("OS <size of virtual memory in bytes> <program1.txt> <program2.txt> ...");
+            Console.WriteLine("OS --page <size of virtual memory page in bytes> <program1.txt> <program2.txt> ...");
         }
     }
 }

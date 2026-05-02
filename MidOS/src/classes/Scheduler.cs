@@ -1,10 +1,8 @@
+// Name: Joseph Feltz
+// zID: z2048486
+
 using MidOS.src.interfaces;
 using MidOS.src.models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MidOS.src.classes
 {
@@ -40,7 +38,7 @@ namespace MidOS.src.classes
 
         public bool AllTerminated()
         {
-            return processes.All(p => p.State == ProcessState.Terminated);
+            return processes.All(p => p.IsIdleProcess || p.State == ProcessState.Terminated);
         }
 
         public IReadOnlyList<PCB> GetAll()

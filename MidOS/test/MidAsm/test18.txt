@@ -1,0 +1,7 @@
+test18
+movi r0, #1
+printr r0
+sleep #5
+movi r0, #2
+printr r0
+exit

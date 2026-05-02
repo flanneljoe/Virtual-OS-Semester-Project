@@ -1,3 +1,6 @@
+// Name: Joseph Feltz
+// zID: z2048486
+
 using MidOS.src.classes;
 
 namespace MidOS.test.drivers
@@ -14,7 +17,7 @@ namespace MidOS.test.drivers
             Console.WriteLine("=== Test 14: Lock Mutual Exclusion ===");
             Console.WriteLine("Expected: 12 lines of '1' followed by 12 lines of '2' (no interleaving)");
             Console.WriteLine("--- Output ---");
-            new CPU(4096, ["test/MidAsm/test14a.txt", "test/MidAsm/test14b.txt"]);
+            new CPU(-1, ["test/MidAsm/test14a.txt", "test/MidAsm/test14b.txt"]);
             Console.WriteLine();
             Console.WriteLine("---");
         }

@@ -1,3 +1,6 @@
+// Name: Joseph Feltz
+// zID: z2048486
+
 using MidOS.src.classes;
 
 namespace MidOS.test.drivers
@@ -13,7 +16,7 @@ namespace MidOS.test.drivers
             Console.WriteLine("=== Test 15: Event Signal/Wait ===");
             Console.WriteLine("Expected: 99 (printed by Process B only after Process A signals event 0)");
             Console.WriteLine("--- Output ---");
-            new CPU(4096, ["test/MidAsm/test15a.txt", "test/MidAsm/test15b.txt"]);
+            new CPU(-1, ["test/MidAsm/test15a.txt", "test/MidAsm/test15b.txt"]);
             Console.WriteLine();
             Console.WriteLine("---");
         }

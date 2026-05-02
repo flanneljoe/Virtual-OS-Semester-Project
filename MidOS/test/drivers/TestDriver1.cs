@@ -1,3 +1,6 @@
+// Name: Joseph Feltz
+// zID: z2048486
+
 using MidOS.src.classes;
 
 namespace MidOS.test.drivers
@@ -9,7 +12,7 @@ namespace MidOS.test.drivers
             Console.WriteLine("=== Test 1: Move and Print ===");
             Console.WriteLine("Expected: 42");
             Console.WriteLine("--- Output ---");
-            new CPU(4096, ["test/MidAsm/test1.txt"]);
+            new CPU(-1, ["test/MidAsm/test1.txt"]);
             Console.WriteLine();
             Console.WriteLine("---");
         }

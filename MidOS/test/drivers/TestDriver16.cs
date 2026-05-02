@@ -1,5 +1,7 @@
+// Name: Joseph Feltz
+// zID: z2048486
+
 using MidOS.src.classes;
-using System;
 
 namespace MidOS.test.drivers
 {
@@ -16,7 +18,7 @@ namespace MidOS.test.drivers
             Console.WriteLine("=== Test 16: Virtual Memory Page Swap ===");
             Console.WriteLine("Expected: 42 and 99 each printed once (order may vary)");
             Console.WriteLine("--- Output ---");
-            new CPU(65536, ["test/MidAsm/test16a.txt", "test/MidAsm/test16b.txt"]);
+            new CPU(-1, ["test/MidAsm/test16a.txt", "test/MidAsm/test16b.txt"]);
             Console.WriteLine();
             Console.WriteLine("---");
         }

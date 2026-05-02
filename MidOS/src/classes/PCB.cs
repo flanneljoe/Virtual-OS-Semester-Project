@@ -1,10 +1,8 @@
+// Name: Joseph Feltz
+// zID: z2048486
+
 using MidOS.src.interfaces;
 using MidOS.src.models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MidOS.src.classes
 {
@@ -21,6 +19,7 @@ namespace MidOS.src.classes
         public ProcessState State { get; set; } = ProcessState.New;
         public uint TimeQuantum { get; set; }
         public uint Priority { get; set; } = 1;
+        public bool IsIdleProcess { get; set; } = false;
 
         // Statistics
         public ulong ClockCyclesUsed { get; set; } = 0;
@@ -35,6 +34,9 @@ namespace MidOS.src.classes
 
         // Per-Process Page Table
         public List<IMemPage> WorkingSetPages { get; } = [];
+
+        // Heap allocator — initialized after address space is set up in CPU.Run()
+        public HeapAllocator? HeapAllocator { get; set; }
 
         public PCB(IProgram p, AddressSpace context, uint timeQuantum)
         {

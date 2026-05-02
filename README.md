@@ -3,31 +3,59 @@
 ## Course: CSCI 480 - Spring 2026
 
 # Introduction
-This repository will be used to store your code files for the CSCI-480 course project.
+Spring 2026 CSCI 480 MidOS semester Project by Joe Feltz. 
 
-## How to use this repository
-- For each assignment, create a new branch off the main branch.
-- The branches should be named:
--   Assignment-1
--   Assignment-2
--   Assignment-3
--   Assignment-4
--   Assignment-5
--   Assignment-6
-*It is VERY important you name them appropriately*
+This project is written in C# and intended to run with .NET version 9.0.
 
-Each project should exist in its own branch, but each project needs to branch from the last project.
+The project is most easily viewed in Visual Studio, or Visual Studio Code.
 
-Example:
-- Before you begin assignment #1
--   Create A branch of main (or master) named "Assignment-1"
--   Complete the assignment
--   Check in your code and push to the repository
--   We will NOT use pull requests so you don't have to wait for them to be reviewed before continuing.
-### Next 
-- You have completed assignment #1
-- You create a branch off assignment #1 called "Assignment-2"
-- Complete the assignment
-- Check in your code and push to the repository
+# Project Configuration
+The file `osconfig.json` holds configuration settings to be used by the operating system when running.
 
-Repeat this for each assignment
+The project attempts to get the configuration settings at runtime from `osconfig.json`.
+
+When running the project from an executable, `osconfig.json` is expected to be in the root directory where the executable is being run from.
+
+If `osconfig.json` is not present in the root directory, then internal fallback values are used.
+
+# Bulding the Project
+The project can easily be built in Visual Studio, using the build command. `Ctrl+Shift+B` by default.
+
+On the command line, the project can be built with:
+`dotnet clean`
+`dotnet build`
+
+# Running the Project
+The project can be run on the command line using the executable, or using dotnet.
+
+## Using the Project Executable
+The project builds to an executable named `MidOS.exe`, which can be run using:
+`MidOS.exe --page <Size in bytes of a virtual memory page> <Path to MidOS assemby file> <Path to MidOS assemby file> ...`
+
+`--page <Size in bytes of a virtual memory page>` is an optional first parameter pair, which allows for specifying the size in bytes to be used for a vitual memory page. This value can be different from, and supercedes, the value in `osconfig.json`.
+
+`<Path to MidOS assembly file>` are parameters that represent paths to files containing valid MidOS assembly language files. As many paths as desired can be passed, though at least one path is required to be passed to the system.
+
+## Using Dotnet
+The project can also be run from the project root directory using the following command:
+`dotnet run --page <size in bytes of a virtual memory page> <Path to MidOS assemby file> <Path to MidOS assemby file> ...`
+
+Just as with the executable, `--page <Size in bytes of a virtual memory page>` is an optional first parameter pair for the size of virtual memory pages. Additionally, at least one MidOS assembly file must still be passed to the system.
+
+## Running Test Files
+To run the project's test files, the following commands can be used:
+`MidOS.exe --test`
+`dotnet run --test`
+
+This will cause all 18 test files to run.
+
+Alternativly, to one of the project's test files the following commands can be used:
+
+`MidOS.exe --test <test number 1-18>`
+`dotnet run --test <test number 1-18>`
+
+These commands run the project using test files, where a number in the range [1, 18] represents the test to run.
+
+
+Just as when running the project outside of test mode, `osconfig.json` is expected to be in the root directory for the solution, or in the root directory where the executable is being run, else default values will be used.
+Moreover, the test files rely on their relative paths to their MidOS assemly files to remain the same. I do not recommend running the tests from the executable from outside the project's root directory.

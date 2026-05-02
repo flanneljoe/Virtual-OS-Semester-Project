@@ -1,21 +1,11 @@
-﻿using System;
+﻿// Name: Joseph Feltz
+// zID: z2048486
+
 using System.Text.Json;
-using System.IO;
-using System.Configuration;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Security.Claims;
-using System.Text;
-using System.Threading.Tasks;
 
 using MidOS.src.interfaces;
 using MidOS.src.models;
-using System.Threading.Tasks.Sources;
-using System.Runtime.CompilerServices;
-using System.Net.Http.Headers;
-using System.Security.Cryptography.X509Certificates;
-using System.Security.AccessControl;
+
 
 namespace MidOS.src.classes
 {  
@@ -93,7 +83,7 @@ namespace MidOS.src.classes
 
             Scheduler scheduler = new Scheduler();
 
-            // Phase 1: Load all programs into processes and enqueue them
+            // Load all programs into processes and enqueue them
             foreach (string file in programFiles)
             {
                 const uint PROG_BASE = 0;
@@ -113,8 +103,8 @@ namespace MidOS.src.classes
                 ProgramLoader loader = new ProgramLoader(p, mem, proc.WorkingSetPages);
                 loader.LoadProgram();
 
-                // Code pages were written by the loader, not by the process — reset dirty flags
-                // so clean pages don't trigger unnecessary swap writes when evicted
+                // Code pages were written by the loader, not by the process
+                // reset dirty flags so clean pages don't trigger unnecessary swap writes when evicted
                 foreach (IMemPage page in proc.WorkingSetPages)
                     page.IsDirty = false;
 
@@ -139,6 +129,8 @@ namespace MidOS.src.classes
                     stackBase, stackLimit
                 ));
 
+                proc.HeapAllocator = new HeapAllocator(heapBase, heapLimit, config.PageSize);
+
                 // Set initial register state:
                 // r11 (IP) = 0  (already 0 from zero-init)
                 // r13 (SP) = top of stack
@@ -150,19 +142,34 @@ namespace MidOS.src.classes
                 scheduler.Enqueue(proc);
             }
 
-            // Scheduler loop, runs until all processes have terminated
+            // Kernel idle process — always Ready at Priority 0 so it only runs when no user
+            // process is Ready. Never registered with MemManager; needs no physical frames.
+            PCB idle = new PCB(new KernelIdleProgram(), new AddressSpace(0, 0, 0, 0, 0, 0, 0, 0), 1)
+            {
+                IsIdleProcess = true,
+                Priority = 0,
+                State = ProcessState.Ready
+            };
+            scheduler.Enqueue(idle);
+
+            // Scheduler loop, runs until all user processes have terminated
             while (!scheduler.AllTerminated())
             {
                 scheduler.WakeExpired(clock);
 
                 PCB? next = scheduler.SelectNext();
-                if (next == null)
+
+                // Idle process: advance the clock without a full context switch or instruction fetch
+                if (next != null && next.IsIdleProcess)
                 {
-                    Tick();   // all live processes are sleeping; advance time
+                    next.State = ProcessState.Running;
+                    next.ClockCyclesUsed++;
+                    Tick();
+                    next.State = ProcessState.Ready;
                     continue;
                 }
 
-                next.State = ProcessState.Running;
+                next!.State = ProcessState.Running;
                 mem.SetCurrentProcess(next.ProcessId);
                 mem.SetPageTable(next.WorkingSetPages);
                 mem.SetContext(next.GetAddressSpace());
@@ -185,12 +192,15 @@ namespace MidOS.src.classes
 
             // Print per-process and memory statistics
             Console.WriteLine("\n--- Process Statistics ---");
-            foreach (PCB proc in scheduler.GetAll())
+            foreach (PCB proc in scheduler.GetAll().Where(p => !p.IsIdleProcess))
             {
                 Console.WriteLine(
                     $"Process {proc.ProcessId}: " +
                     $"{proc.ClockCyclesUsed} cycles, {proc.ContextSwitchCount} context switches");
             }
+            PCB? idleProc = scheduler.GetAll().FirstOrDefault(p => p.IsIdleProcess);
+            if (idleProc != null)
+                Console.WriteLine($"Idle: {idleProc.ClockCyclesUsed} cycles");
             Console.WriteLine($"\n--- Memory Statistics ---");
             Console.WriteLine($"Total page faults: {mem.PageFaultCount}");
         }
@@ -298,6 +308,7 @@ namespace MidOS.src.classes
             mem.Tick();
         }
 
+        #region OpCode_Decode
         public Action<uint, uint> TryDecode(uint opCode)
         {
             string insnName = OpCodes.GetOpName(opCode);
@@ -430,16 +441,26 @@ namespace MidOS.src.classes
                 case "ReleaseLockI":
                     return Exec_ReleaseLockI;
 
-                case "SignalEvent":  return Exec_SignalEvent;
-                case "WaitEvent":   return Exec_WaitEvent;
-                case "SignalEventI": return Exec_SignalEventI;
-                case "WaitEventI":  return Exec_WaitEventI;
+                case "SignalEvent":  
+                    return Exec_SignalEvent;
+                case "WaitEvent":   
+                    return Exec_WaitEvent;
+                case "SignalEventI": 
+                    return Exec_SignalEventI;
+                case "WaitEventI":  
+                    return Exec_WaitEventI;
+
+                case "Alloc":       
+                    return Exec_Alloc;
+                case "FreeMemory":  
+                    return Exec_FreeMemory;
 
                 default:
                     return Exec_InvalidInsn;
                     
             }
         }
+        #endregion
 
         #region **** MidAsm Delegates ****
 
@@ -1048,6 +1069,20 @@ namespace MidOS.src.classes
         {
             WaitEventById(p1);
         }
+
+        private void Exec_Alloc(uint p1, uint p2)
+        {
+            uint size = GetRegVal(p1);
+            uint addr = currentProc?.HeapAllocator?.Alloc(size) ?? 0;
+            SetRegVal(p2, addr);
+            AdvanceIP();
+        }
+
+        private void Exec_FreeMemory(uint p1, uint p2)
+        {
+            currentProc?.HeapAllocator?.Free(GetRegVal(p1));
+            AdvanceIP();
+        }
         #endregion
     }
 
@@ -1168,6 +1203,17 @@ namespace MidOS.src.classes
 
             mem.WriteAddr(addr, value);
         }
+    }
+
+    // Minimal IProgram for the kernel idle process — no file, no physical memory needed.
+    internal class KernelIdleProgram : IProgram
+    {
+        public string GetName() => "[idle]";
+        public void SetName(string name) { }
+        public string GetPath() => string.Empty;
+        public uint GetProgramBase() => 0;
+        public uint GetSize() => 0;
+        public void SetSize(uint size) { }
     }
 
 }

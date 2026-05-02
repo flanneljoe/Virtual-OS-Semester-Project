@@ -1,3 +1,6 @@
+// Name: Joseph Feltz
+// zID: z2048486
+
 using MidOS.src.interfaces;
 
 namespace MidOS.src.classes
@@ -37,11 +40,11 @@ namespace MidOS.src.classes
             pageTable = table;
         }
 
-        public MemManager(int _, OSConfig config)
+        public MemManager(int virtualPageSize, OSConfig config)
         {
             int physicalMemSize = (int)config.PhysicalMemorySize;
             memory = new PhysicalMemory(physicalMemSize);
-            pageSize = config.PageSize;
+            pageSize = virtualPageSize > 0 ? (uint)virtualPageSize : config.PageSize / 8;
             physicalFramePool = [];
             pageTable = [];
             InitPageTable(physicalMemSize, config.SharedMemoryCount);

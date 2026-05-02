@@ -1,9 +1,5 @@
-﻿using MidOS.src.classes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿// Name: Joseph Feltz
+// zID: z2048486
 
 namespace MidOS.src.interfaces
 {
