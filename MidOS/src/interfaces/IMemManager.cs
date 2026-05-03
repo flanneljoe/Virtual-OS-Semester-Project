@@ -124,7 +124,8 @@ namespace MidOS.src.interfaces
 
         /// <summary>
         /// Advances the memory manager's internal clock, used to timestamp LRU page accesses.
-        /// Should be called once per CPU clock tick.
+        /// Should be called once per CPU clock tick. 
+        /// Exists to avoid passing a reference to the CPU and preserve the division between the CPU and memory.
         /// </summary>
         void Tick();
 

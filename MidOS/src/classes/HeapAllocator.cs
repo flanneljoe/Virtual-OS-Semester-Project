@@ -33,7 +33,8 @@ namespace MidOS.src.classes
             {
                 if (!pageUsed[i])
                 {
-                    if (runLen == 0) runStart = i;
+                    if (runLen == 0)
+                        runStart = i;
                     runLen++;
                     if (runLen == pagesNeeded)
                     {

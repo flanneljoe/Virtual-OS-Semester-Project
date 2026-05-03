@@ -109,23 +109,23 @@ namespace MidOS.src.classes
                     page.IsDirty = false;
 
                 // Compute the full virtual address layout now that code size is known
-                uint codeBase  = PROG_BASE;
+                uint codeBase = PROG_BASE;
                 uint codeLimit = codeBase + p.GetSize();
 
-                uint dataBase  = codeLimit;
+                uint dataBase = codeLimit;
                 uint dataLimit = dataBase + config.GlobalDataSize;
 
-                uint heapBase  = dataLimit;
+                uint heapBase = dataLimit;
                 uint heapLimit = heapBase + config.HeapSize;
 
-                uint stackBase  = heapLimit + config.StackSize;
+                uint stackBase = heapLimit + config.StackSize;
                 uint stackLimit = heapLimit;
 
                 // Replace the placeholder with the real AddressSpace
                 proc.SetAddressSpace(new AddressSpace(
-                    codeBase,  codeLimit,
-                    dataBase,  dataLimit,
-                    heapBase,  heapLimit,
+                    codeBase, codeLimit,
+                    dataBase, dataLimit,
+                    heapBase, heapLimit,
                     stackBase, stackLimit
                 ));
 
@@ -142,8 +142,8 @@ namespace MidOS.src.classes
                 scheduler.Enqueue(proc);
             }
 
-            // Kernel idle process — always Ready at Priority 0 so it only runs when no user
-            // process is Ready. Never registered with MemManager; needs no physical frames.
+            // Kernel idle process, always Ready at Priority 0 so it only runs when no user process is Ready. 
+            // Never registered with MemManager; needs no physical frames.
             PCB idle = new PCB(new KernelIdleProgram(), new AddressSpace(0, 0, 0, 0, 0, 0, 0, 0), 1)
             {
                 IsIdleProcess = true,
@@ -208,7 +208,6 @@ namespace MidOS.src.classes
         public uint GetRegAddr(uint reg)
         {
             return mem.GetAddr(regs[reg]);
-            //return regs[reg];
         }
 
         public uint GetRegVal(uint reg)
@@ -1205,7 +1204,7 @@ namespace MidOS.src.classes
         }
     }
 
-    // Minimal IProgram for the kernel idle process — no file, no physical memory needed.
+    // Minimal IProgram for the kernel idle process; no file, no physical memory needed.
     internal class KernelIdleProgram : IProgram
     {
         public string GetName() => "[idle]";

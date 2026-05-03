@@ -50,31 +50,53 @@ namespace MidOS.src.classes
             InitPageTable(physicalMemSize, config.SharedMemoryCount);
         }
 
+        /// <summary>
+        /// Initializes physical frame pool using configuration settings. 
+        /// </summary>
+        /// <param name="physicalMemSize">Total size of physical memory.</param>
+        /// <param name="sharedCount">Number of shared pages in configuration settings.</param>
         private void InitPageTable(int physicalMemSize, uint sharedCount)
         {
+            // Determines total number of pages needed to represent physical memory
             int totalPages = (physicalMemSize + (int)pageSize - 1) / (int)pageSize;
 
+            // Finds the appropriate number of shared pages to use.
+            // Errors were encountered when running low amounts of physical memory
+            // so the number of shared pages in the configuration files may not always be possible.
             uint effectiveSharedCount = (uint)Math.Min((int)sharedCount, Math.Max(0, totalPages - 1));
 
+            // Adds shared pages to frame pool first
             for (int i = 0; i < effectiveSharedCount; i++)
                 physicalFramePool.Add(new MemPage((uint)(i * pageSize)) { IsShared = true, IsOccupied = true });
 
+            // Fill remainder of frame pool with process specific pages
             for (int i = (int)effectiveSharedCount; i < totalPages; i++)
                 physicalFramePool.Add(new MemPage((uint)(i * pageSize)));
         }
 
+        /// <summary>
+        /// Translate a virtual address the physical address in the frame pool
+        /// </summary>
+        /// <param name="virtualAddr">The virtual address to translate</param>
+        /// <returns>Returns a physical address corresponding to the provided virtual address</returns>
         private uint Translate(uint virtualAddr)
         {
+            // Get page and offset
             uint page = virtualAddr / pageSize;
             uint offset = virtualAddr % pageSize;
 
+            // Determine if a new virtual page needs to be allocated
             bool needsAllocation = page >= (uint)pageTable.Count || !pageTable[(int)page].IsOccupied;
 
             if (needsAllocation)
             {
+                // Allocate a new physical page
+                // Then fill page table with empty pages up until the index of the new page
                 uint physBase = AllocatePhysicalPage();
                 while (pageTable.Count <= (int)page)
                     pageTable.Add(new MemPage(0));
+
+                // Configure the new MemPage
                 pageTable[(int)page].PhysicalBase = physBase;
                 pageTable[(int)page].IsOccupied = true;
                 pageTable[(int)page].IsValid = true;
@@ -152,7 +174,7 @@ namespace MidOS.src.classes
                 throw new OutOfMemoryException("MemManager: No evictable pages found during LRU eviction.");
 
             // Save to swap only if dirty, or if this page has never been swapped before.
-            // Clean pages with an existing swap copy are already up to date — skip the write.
+            // Clean pages with an existing swap copy are already up to date, skip the write.
             bool hasSwapCopy = SwapVirtualPage.ContainsKey((victimPid, victimVpn));
             if (victim.IsDirty || !hasSwapCopy)
             {
