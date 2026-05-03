@@ -35,7 +35,7 @@ namespace MidOS.src.classes
         // Per-Process Page Table
         public List<IMemPage> WorkingSetPages { get; } = [];
 
-        // Heap allocator — initialized after address space is set up in CPU.Run()
+        // Heap allocator, initialized after address space is set up in CPU.Run()
         public HeapAllocator? HeapAllocator { get; set; }
 
         public PCB(IProgram p, AddressSpace context, uint timeQuantum)
