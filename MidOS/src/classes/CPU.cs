@@ -292,6 +292,14 @@ namespace MidOS.src.classes
             Action<uint, uint> Exec = TryDecode(opCode);
             Exec(p1, p2);
 
+            // A halted CPU means the process hit an unrecoverable fault (invalid instruction,
+            // stack corruption, bad jump). Terminate it cleanly and reset the flag.
+            if (IsHalted)
+            {
+                Exec_Exit(0, 0);
+                IsHalted = false;
+            }
+
             // Save CPU state back to process, registers and flags
             proc.SetRegisters(regs);
             proc.ZeroFlag = ZERO_FLAG;
@@ -430,6 +438,9 @@ namespace MidOS.src.classes
 
                 case "setPriorityI":
                     return Exec_SetpriorityI;
+
+                case "MapSharedMem":
+                    return Exec_MapSharedMem;
 
                 case "AcquireLock":
                     return Exec_AquireLock;
@@ -912,8 +923,8 @@ namespace MidOS.src.classes
             if (currentProc == null) return;
 
             // p1 = shared region ID (immediate), p2 = destination register for virtual base address
-            uint physBase    = mem.GetSharedFrameBase(p1);
-            uint pageSize    = mem.GetPageSize();
+            uint physBase = mem.GetSharedFrameBase(p1);
+            uint pageSize = mem.GetPageSize();
 
             // Extend this process's shared segment by one page and get its virtual base address
             uint virtualBase = currentProc.GetAddressSpace().MapSharedPage(pageSize);

@@ -1,0 +1,6 @@
+SharedMemTest-Reader
+MapSharedMem r0, r1
+WaitEventI #1
+movmr r2, r1
+printr r2
+exit

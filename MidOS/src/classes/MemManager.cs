@@ -304,7 +304,11 @@ namespace MidOS.src.classes
 
             IMemPage? frame = physicalFramePool.FirstOrDefault(p => p.PhysicalBase == physicalBase);
             if (frame != null)
+            {
                 frame.IsOccupied = true;
+                if (frame.IsShared)
+                    pageTable[(int)logicalPage].IsShared = true;
+            }
         }
 
         public void RegisterProcess(uint pid, List<IMemPage> workingSet)

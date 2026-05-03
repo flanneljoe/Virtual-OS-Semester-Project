@@ -51,10 +51,10 @@ This will cause all 18 test files to run.
 
 Alternativly, to one of the project's test files the following commands can be used:
 
-`MidOS.exe --test <test number 1-18>`
-`dotnet run --test <test number 1-18>`
+`MidOS.exe --test <test number 1-19>`
+`dotnet run --test <test number 1-19>`
 
-These commands run the project using test files, where a number in the range [1, 18] represents the test to run.
+These commands run the project using test files, where a number in the range [1, 19] represents the test to run.
 
 
 Just as when running the project outside of test mode, `osconfig.json` is expected to be in the root directory for the solution, or in the root directory where the executable is being run, else default values will be used.

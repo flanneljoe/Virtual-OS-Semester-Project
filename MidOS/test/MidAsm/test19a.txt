@@ -1,0 +1,6 @@
+SharedMemTest-Writer
+MapSharedMem r0, r1
+movi r2, #42
+movrm r1, r2
+SignalEventI #1
+exit
